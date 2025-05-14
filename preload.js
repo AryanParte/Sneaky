@@ -211,7 +211,24 @@ contextBridge.exposeInMainWorld(
     },
     
     // Utility function to check if running in Electron
-    isElectron: true
+    isElectron: true,
+    
+    onAudioToggle: (callback) => ipcRenderer.on('toggle-audio', callback),
+    sendSuggestions: (data) => ipcRenderer.send('suggestions', data),
+    transcribeAudio: (blob) => {
+      return new Promise((resolve, reject) => {
+        // Convert blob to buffer for IPC transfer
+        const reader = new FileReader();
+        reader.onload = () => {
+          const buffer = Buffer.from(reader.result);
+          ipcRenderer.invoke('transcribe-audio', buffer)
+            .then(resolve)
+            .catch(reject);
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(blob);
+      });
+    }
   }
 );
 

@@ -4,6 +4,10 @@ const isDev = require('electron-is-dev');
 const { screen } = require('electron');
 const Store = require('electron-store');
 const http = require('http');
+const fetch = require('node-fetch');
+const FormData = require('form-data');
+// Load environment variables
+require('dotenv').config();
 
 // Initialize the settings store
 const store = new Store();
@@ -58,7 +62,9 @@ function createMainWindow() {
       contextIsolation: true,
       enableRemoteModule: false,
       sandbox: false,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
+      enableBlinkFeatures: 'MediaStream',
+      // media: true  // Uncomment for Electron ≥29
     },
     icon: path.join(__dirname, 'assets/icon.png'),
     show: false // Don't show until loaded
@@ -133,7 +139,9 @@ function createOverlayWindow() {
       contextIsolation: true,
       enableRemoteModule: false,
       sandbox: false,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
+      enableBlinkFeatures: 'MediaStream',
+      // media: true  // Uncomment for Electron ≥29
     },
     show: false // Don't show until loaded
   });
@@ -256,8 +264,8 @@ function registerShortcuts() {
   }
 
   try {
-    globalShortcut.register(store.get('settings').audioShortcut || 'CommandOrControl+Shift+A', () => {
-      if (mainWindow) mainWindow.webContents.send('trigger-audio-capture');
+    globalShortcut.register('CommandOrControl+Shift+A', () => {
+      if (mainWindow) mainWindow.webContents.send('toggle-audio');
     });
     console.log('- Audio Capture Shortcut registered');
   } catch (e) {
@@ -372,6 +380,37 @@ function setupIPC() {
     if (overlayWindow) {
       const [x, y] = overlayWindow.getPosition();
       overlayWindow.setPosition(x + dx, y + dy);
+    }
+  });
+
+  // Handle audio transcription requests
+  ipcMain.handle('transcribe-audio', async (event, audioBuffer) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', Buffer.from(audioBuffer), {
+        filename: 'audio.webm',
+        contentType: 'audio/webm',
+      });
+      formData.append('model', 'whisper-1');
+
+      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Whisper API error: ${error}`);
+      }
+
+      const data = await response.json();
+      return data.text;
+    } catch (error) {
+      console.error('Transcription error:', error);
+      throw error;
     }
   });
 }

@@ -19,3 +19,6 @@ pids
 # Electron specific
 dist/
 out/
+
+# Environment variables
+.env
