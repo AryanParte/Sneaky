@@ -1,0 +1,56 @@
+To create a Cluely-style MVP (Minimum Viable Product) — a discreet AI-powered desktop assistant for real-time help during interviews, meetings, or calls — here’s a structured product roadmap and tech plan that gets you to a lean, functional version fast:
+
+⸻
+
+🎯 MVP Goal
+
+A lightweight desktop assistant that can:
+	•	Read screen content and audio in real-time
+	•	Provide contextual suggestions (e.g., answers, prompts, data lookups)
+	•	Run discreetly and be minimally intrusive
+
+⸻
+
+🔧 Tech Stack
+
+Frontend / UI:
+	•	Electron.js (for cross-platform desktop apps)
+	•	React (for building the UI in Electron)
+	•	Tailwind CSS (fast UI design)
+
+Backend / AI:
+	•	Python (FastAPI) or Node.js for server-side logic
+	•	OpenAI API / Local LLM for real-time responses
+	•	Whisper / Vosk for speech-to-text (if real-time audio is used)
+	•	Tesseract.js or Screen parsing with OCR for screen reading
+
+System Access:
+	•	Tesseract OCR for screen capture interpretation
+	•	PyGetWindow / pyautogui (Python) or robotjs (Node) for screen & input control
+	•	Electron IPC to bridge native features and frontend
+
+⸻
+
+🧪 MVP Features
+
+1. Screen Snippet OCR
+	•	Shortcut triggers screen capture
+	•	Run OCR (Tesseract) to extract visible text
+	•	Send it to LLM for suggestions
+
+2. Real-Time Audio Transcription (Optional MVP Feature)
+	•	Use Whisper to live-transcribe meeting audio
+	•	Send chunks to GPT and get summarized feedback
+
+3. Answer Prompt Panel
+	•	Small floating overlay with 1-2 suggested prompts/responses
+	•	Option to copy to clipboard instantly
+
+4. Undetectable UX
+	•	Low-opacity overlay / no clickable windows
+	•	Hotkey for hide/show or toggle modes
+
+5. Simple User Config
+	•	Login with API key
+	•	Choose which assistant model to use (GPT-4, Claude, etc.)
+	•	Toggle screen/audio input
