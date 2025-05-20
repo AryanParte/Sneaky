@@ -120,7 +120,7 @@ const MainApp = () => {
   return (
     <div className="container mx-auto p-6">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Cluely</h1>
+        <h1 className="text-3xl font-bold text-gray-800">Sneaky</h1>
         <p className="text-gray-600">Your discreet AI-powered desktop assistant</p>
       </header>
 

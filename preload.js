@@ -232,6 +232,20 @@ contextBridge.exposeInMainWorld(
         reader.onerror = reject;
         reader.readAsArrayBuffer(blob);
       });
+    },
+    quitApp: () => {
+      console.log('[Preload] quitApp called');
+      ipcRenderer.invoke('quit-app');
+    },
+    onShowHistory: (callback) => {
+      const listener = () => callback();
+      ipcRenderer.on('show-history', listener);
+      return () => ipcRenderer.removeListener('show-history', listener);
+    },
+    onAskSneaky: (callback) => {
+      const listener = () => callback();
+      ipcRenderer.on('ask-sneaky', listener);
+      return () => ipcRenderer.removeListener('ask-sneaky', listener);
     }
   }
 );

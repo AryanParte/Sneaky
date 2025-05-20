@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
 // Log access attempt at the module level (runs once on import)
 console.log('[SettingsContext Module] Checking window.electron:', typeof window !== 'undefined' ? window.electron : 'window is undefined');
@@ -21,83 +21,46 @@ export const SettingsProvider = ({ children }) => {
   // Log access attempt inside the component body (runs on each render)
   console.log('[SettingsProvider Render] Checking window.electron:', typeof window !== 'undefined' ? window.electron : 'window is undefined');
 
+  // Get API key from environment
+  const envKey = window.electronEnv?.getOpenAIKey?.() || '';
+  
+  // Initialize settings without apiKey
   const [settings, setSettings] = useState({
-    apiKey: '',
-    modelName: 'gpt-4',
-    enableAudio: false,
-    enableScreen: true,
-    opacity: 0.8
+    modelName: 'gpt-4o',
+    opacity: 0.9,
+    enableAudio: true,
+    autoCapture: false,
+    theme: 'dark'
   });
-  const [isLoading, setIsLoading] = useState(true);
-  const [isElectron, setIsElectron] = useState(() => {
-    const runningInElectron = typeof window !== 'undefined' && !!window.electron;
-    console.log('[SettingsProvider Effect] Confirming Electron environment:', runningInElectron, 'window.electron keys:', typeof window !== 'undefined' && window.electron ? Object.keys(window.electron) : 'N/A');
-    return runningInElectron;
-  });
+  
+  const isElectron = typeof window !== 'undefined' && window.electron;
 
+  // Load settings from electron store on mount
   useEffect(() => {
-    console.log('[SettingsProvider Effect] Component mounted. Initial isElectron:', isElectron);
-
-    // Attempt to load settings
-    const loadSettings = async () => {
-      try {
-        // Force check again in case the electron object wasn't available immediately
-        setIsElectron(isRunningInElectron());
-        
-        if (window.electron) {
-          console.log('Loading settings from Electron store...');
-          const savedSettings = await window.electron.getSettings();
-          
-          // Check if we have an environment API key but no saved key
-          const envKey = window.electronEnv?.getOpenAIKey?.() || '';
-          if (!savedSettings.apiKey && envKey) {
-            savedSettings.apiKey = envKey;
-            await window.electron.saveSettings(savedSettings); // persist once
-            console.log('[Settings] seeded API key from .env');
-          }
-          
-          setSettings(savedSettings);
-          setIsLoading(false);
-        } else {
-          console.log('Electron not available, using default settings');
-          // Also check for env key in the default settings case
-          const envKey = window.electronEnv?.getOpenAIKey?.() || '';
-          const defaultSettings = {
-            apiKey: envKey || '',
-          };
-          setSettings(defaultSettings);
-          setIsLoading(false);
-        }
-      } catch (error) {
-        console.error('Failed to load settings:', error);
+    if (isElectron && window.electron.loadSettings) {
+      const loadedSettings = window.electron.loadSettings();
+      if (loadedSettings) {
+        // Remove apiKey from loaded settings
+        const { apiKey, ...rest } = loadedSettings;
+        setSettings(prev => ({ ...prev, ...rest }));
       }
-    };
-
-    loadSettings();
-  }, []);
-
-  const updateSettings = async (newSettings) => {
-    console.log('[SettingsProvider] Attempting to save settings:', newSettings);
-    const updatedSettings = { ...settings, ...newSettings };
-    setSettings(updatedSettings);
-    
-    if (window.electron) {
-      try {
-        console.log('Saving settings to Electron store...');
-        await window.electron.saveSettings(updatedSettings);
-        console.log('Settings saved successfully');
-      } catch (error) {
-        console.error('Failed to save settings:', error);
-      }
-    } else {
-      // Fallback for browser environment
-      console.log('Saving settings to localStorage (browser fallback)');
-      localStorage.setItem('cluelySettings', JSON.stringify(updatedSettings));
     }
+  }, [isElectron]);
+
+  // Update settings and save to electron store
+  const updateSettings = (patch) => {
+    // Strip apiKey from patch
+    const { apiKey, ...rest } = patch;
+    const next = { ...settings, ...rest };
+    setSettings(next);
+    if (isElectron && window.electron.saveSettings) {
+      window.electron.saveSettings(next);
+    }
+    return next;
   };
 
   return (
-    <SettingsContext.Provider value={{ settings, updateSettings, isLoading, isElectron }}>
+    <SettingsContext.Provider value={{ settings, envKey, updateSettings, isElectron }}>
       {children}
     </SettingsContext.Provider>
   );

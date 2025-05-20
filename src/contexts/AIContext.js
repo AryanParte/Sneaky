@@ -7,7 +7,7 @@ const AIContext = createContext();
 export const useAI = () => useContext(AIContext);
 
 export const AIProvider = ({ children }) => {
-  const { settings, updateSettings } = useSettings();
+  const { settings, envKey, updateSettings } = useSettings();
   const [suggestions, setSuggestions] = useState([]); // deprecated but kept
   const [screenText, setScreenText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -56,7 +56,7 @@ export const AIProvider = ({ children }) => {
       });
 
       const prompt = `
-        You are Cluely, a discreet AI assistant helping during meetings, interviews, or calls.
+        You are Sneaky, a discreet AI assistant helping during meetings, interviews, or calls.
         Based on the following screen content, provide 1-2 concise, helpful suggestions that might be useful to the user.
         Keep suggestions under 100 characters each.
         
@@ -132,7 +132,7 @@ export const AIProvider = ({ children }) => {
       });
 
       const prompt = `
-        You are Cluely, a discreet AI assistant helping during meetings, interviews, or calls.
+        You are Sneaky, a discreet AI assistant helping during meetings, interviews, or calls.
         Based on the following audio transcription, provide 1-2 concise, helpful suggestions that might be useful to the user.
         Keep suggestions under 100 characters each.
         
@@ -214,91 +214,103 @@ export const AIProvider = ({ children }) => {
   }, [settings.apiKey, settings.modelName]);
 
   // Send a chat message and get assistant reply
-  const sendChatMessage = async (content) => {
-    if (!settings.apiKey) {
-      // Try to get the key from environment as a last resort
-      const envKey = window.electronEnv?.getOpenAIKey?.();
-      if (envKey) {
-        // Update settings with the environment key
-        if (updateSettings) {
-          await updateSettings({ apiKey: envKey });
-        } else {
-          console.warn('updateSettings not available, using env key directly');
-          settings.apiKey = envKey; // Direct update as fallback
-        }
-      } else {
-        setError('API key is not configured. Please go to settings.');
+  const sendChatMessage = async (content, isAudioMode = false) => {
+    return new Promise(async (resolve, reject) => {
+      const apiKey = envKey;
+      if (!apiKey) {
+        setError('⚠️ Add OPENAI_API_KEY to .env and restart.');
+        reject('no key');
         return;
       }
-    }
 
-    const trimmed = content.trim();
-    if (!trimmed) return;
-
-    // Optimistically add user message to history and broadcast to overlay (if in main window)
-    const userMsg = { role: 'user', content: trimmed };
-    setChatHistory((prev) => [...prev, userMsg]);
-
-    if (!isOverlayWindow && window.electron?.sendChatMessage) {
-      try {
-        window.electron.sendChatMessage(userMsg);
-      } catch (err) {
-        console.warn('[AIContext] Failed to send user chat IPC:', err);
+      const trimmed = content.trim();
+      if (!trimmed) {
+        reject('Empty content');
+        return;
       }
-    }
 
-    setIsChatProcessing(true);
-    setError(null);
+      // Optimistically add user message to history and broadcast to overlay (if in main window)
+      const userMsg = { role: 'user', content: trimmed };
+      setChatHistory((prev) => [...prev, userMsg]);
 
-    try {
-      const openai = new OpenAI({ apiKey: settings.apiKey, dangerouslyAllowBrowser: true });
-      // Build context messages
-      let ctxText = screenText;
-      if (window.electron?.captureScreen) {
+      if (!isOverlayWindow && window.electron?.sendChatMessage) {
         try {
-          const res = await window.electron.captureScreen();
-          if (res.success && res.text) {
-            ctxText = res.text;
-            setScreenText(res.text);
-          }
-        } catch {}
-      }
-      const systemPrompt = ctxText
-        ? `You are Cluely... [SCREEN OCR]\n${ctxText.slice(0,4000)}`
-        : 'You are Cluely...';
-      const messages = [ { role: 'system', content: systemPrompt }, ...chatHistory.map(m=>({role:m.role,content:m.content})), { role:'user', content: trimmed } ];
-      // Start streaming completion
-      const stream = await openai.chat.completions.create({
-        model: settings.modelName,
-        messages,
-        // Increase max tokens for longer responses
-        max_tokens: 1500,
-        temperature: 0.7,
-        stream: true
-      });
-      const assistantMsg = { role: 'assistant', content: '' };
-      // Add empty msg to history
-      setChatHistory(prev => [...prev, assistantMsg]);
-      if (!isOverlayWindow) window.electron?.sendChatMessage(assistantMsg);
-      // Append chunks as they arrive
-      for await (const part of stream) {
-        const delta = part.choices?.[0]?.delta?.content;
-        if (delta) {
-          assistantMsg.content += delta;
-          setChatHistory(prev => {
-            const h = [...prev];
-            h[h.length-1] = { ...assistantMsg };
-            return h;
-          });
-          if (!isOverlayWindow) window.electron?.sendChatMessage({ role:'assistant', content: assistantMsg.content });
+          window.electron.sendChatMessage(userMsg);
+        } catch (err) {
+          console.warn('[AIContext] Failed to send user chat IPC:', err);
         }
       }
-    } catch (err) {
-      console.error('Chat streaming error:', err);
-      setError('Chat failed.');
-    } finally {
-      setIsChatProcessing(false);
-    }
+
+      setIsChatProcessing(true);
+      setError(null);
+
+      try {
+        const openai = new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
+        // Build context messages
+        let ctxText = screenText;
+        
+        // Determine system prompt and parameters based on context
+        let systemPrompt = '';
+        let maxTokens = 500;
+        let temperature = 0.7;
+        
+        if (isAudioMode) {
+          // For audio mode, use the prompt that's already in the content
+          systemPrompt = '';
+          maxTokens = 120;
+          temperature = 0.3;
+        } else if (ctxText) {
+          systemPrompt = `You are Sneaky, an AI assistant helping during meetings or calls.
+            The user has shared their screen with you. Here's what's on their screen:
+            ${ctxText.slice(0, 500)}...
+            
+            Provide a helpful, concise response.`;
+        } else {
+          systemPrompt = 'You are Sneaky...';
+          maxTokens = 1500;
+          temperature = 0.7;
+        }
+        
+        const messages = isAudioMode 
+          ? [{ role: 'user', content: trimmed }]  // For audio mode, just use the user message with the prompt
+          : [{ role: 'system', content: systemPrompt }, ...chatHistory.map(m=>({role:m.role,content:m.content})), { role:'user', content: trimmed }];
+        
+        // Start streaming completion
+        const stream = await openai.chat.completions.create({
+          model: settings.modelName,
+          messages,
+          max_tokens: maxTokens,
+          temperature: temperature,
+          stream: true
+        });
+        const assistantMsg = { role: 'assistant', content: '' };
+        // Add empty msg to history
+        setChatHistory(prev => [...prev, assistantMsg]);
+        if (!isOverlayWindow) window.electron?.sendChatMessage(assistantMsg);
+        // Append chunks as they arrive
+        for await (const part of stream) {
+          const delta = part.choices?.[0]?.delta?.content;
+          if (delta) {
+            assistantMsg.content += delta;
+            setChatHistory(prev => {
+              const h = [...prev];
+              h[h.length-1] = { ...assistantMsg };
+              return h;
+            });
+            if (!isOverlayWindow) window.electron?.sendChatMessage({ role:'assistant', content: assistantMsg.content });
+          }
+        }
+        
+        // Resolve the promise with the assistant's response
+        resolve(assistantMsg.content);
+      } catch (err) {
+        console.error('Chat streaming error:', err);
+        setError('Chat failed.');
+        reject(err);
+      } finally {
+        setIsChatProcessing(false);
+      }
+    });
   };
 
   // Analyze raw screen OCR text and inject assistant reply into chat automatically
@@ -317,7 +329,7 @@ export const AIProvider = ({ children }) => {
     try {
       const openai = new OpenAI({ apiKey: settings.apiKey, dangerouslyAllowBrowser: true });
       // Stream assistant analysis
-      const stream = await openai.chat.completions.create({ model: settings.modelName, messages: [{ role:'user', content:`You are Cluely... [SCREEN OCR]\n${ocrText.slice(0,4000)}` }], max_tokens:500, temperature:0.7, stream:true });
+      const stream = await openai.chat.completions.create({ model: settings.modelName, messages: [{ role:'user', content:`You are Sneaky... [SCREEN OCR]\n${ocrText.slice(0,4000)}` }], max_tokens:500, temperature:0.7, stream:true });
       const assistantMsg = { role:'assistant', content:'' };
       setChatHistory(prev=>[...prev,assistantMsg]);
       if (!isOverlayWindow) window.electron?.sendChatMessage(assistantMsg);

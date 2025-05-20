@@ -117,93 +117,77 @@ function createMainWindow() {
 }
 
 function createOverlayWindow() {
-  console.log('Creating overlay window...');
-  // Get the primary display dimensions
+  // Get screen dimensions
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width, height } = primaryDisplay.workAreaSize;
 
+  // Create overlay window
   overlayWindow = new BrowserWindow({
-    width: width,      // full screen width
-    height: Math.round(height / 2),    // half screen height
-    x: 0,            // align left edge
-    y: 0,            // align top edge
+    width: width,
+    height: Math.round(height / 2),
+    x: 0,
+    y: 0,
     frame: false,
     transparent: true,
-    alwaysOnTop: true,
+    alwaysOnTop: true,            // keep above normal windows
+    visibleOnAllWorkspaces: true, // follow across Spaces
     skipTaskbar: true,
-    movable: true,    // allow drag
-    resizable: true,  // allow resize via OS
+    movable: true,
+    resizable: true,
     contentProtection: true,
     webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      enableRemoteModule: false,
-      sandbox: false,
       preload: path.join(__dirname, 'preload.js'),
-      enableBlinkFeatures: 'MediaStream',
-      // media: true  // Uncomment for Electron ≥29
-    },
-    show: false // Don't show until loaded
-  });
-
-  // Load the overlay component
-  const loadOverlay = () => {
-    const url = isDev
-      ? `http://${REACT_DEV_HOST}:${REACT_DEV_PORT}/#/overlay` // Use updated port
-      : `file://${path.join(__dirname, 'build/index.html#/overlay')}`;
-    
-    console.log(`Loading overlay from: ${url}`);
-    overlayWindow.loadURL(url);
-    
-    overlayWindow.once('ready-to-show', () => {
-      console.log('Overlay window ready to show');
-      overlayWindow.show();
-      overlayWindow.focus();
-      // Initialize click-through for View Mode (forward clicks)
-      overlayWindow.setIgnoreMouseEvents(overlayIgnoreMouse, { forward: overlayIgnoreMouse });
-      overlayWindow.webContents.send('toggle-interactive-mode', !overlayIgnoreMouse);
-    });
-    
-    overlayWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-      console.error(`Failed to load overlay: ${errorDescription} (${errorCode})`);
-      // Try to reload after a short delay
-      setTimeout(() => {
-        console.log('Attempting to reload overlay...');
-        overlayWindow.loadURL(url);
-      }, 2000);
-    });
-  };
-
-  if (isDev) {
-    checkReactDevServerReady(loadOverlay);
-  } else {
-    loadOverlay();
-  }
-
-  // Prevent capture fallback and enable run‑time protection (Windows)
-  if (overlayWindow) {
-    overlayWindow.setContentProtection(true);
-  }
-
-  // By default allow interaction; View mode can toggle to click-through via shortcut
-  // overlayWindow.setIgnoreMouseEvents(false);
-
-  // Whenever the overlay window is shown, reapply click-through & mode, then resend suggestions
-  overlayWindow.on('show', () => {
-    // Apply OS-level click-through based on current mode
-    overlayWindow.setIgnoreMouseEvents(overlayIgnoreMouse, { forward: overlayIgnoreMouse });
-    // Update renderer's interactive flag
-    overlayWindow.webContents.send('toggle-interactive-mode', !overlayIgnoreMouse);
-    // Forward cached suggestions
-    if (lastSuggestions && lastSuggestions.length && overlayWindow && overlayWindow.webContents) {
-      console.log('Overlay window shown, sending cached suggestions');
-      overlayWindow.webContents.send('update-suggestions', lastSuggestions);
+      sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false,
+      enableRemoteModule: false,
+      worldSafeExecuteJavaScript: true,
+      spellcheck: false
     }
   });
 
+  // Pin to *every* workspace & full-screen window, plus highest "screen-saver" level
+  overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  overlayWindow.setAlwaysOnTop(true, 'floating');
+
+  // Load the overlay URL
+  const overlayUrl = isDev
+    ? `http://${REACT_DEV_HOST}:${REACT_DEV_PORT}/#/overlay`
+    : `file://${path.join(__dirname, '../build/index.html')}#/overlay`;
+  
+  console.log(`Loading overlay URL: ${overlayUrl}`);
+  overlayWindow.loadURL(overlayUrl);
+
+  // Start in click-through mode
+  overlayWindow.setIgnoreMouseEvents(true);
+  overlayIgnoreMouse = true;
+
+  // Handle window close
   overlayWindow.on('closed', () => {
     overlayWindow = null;
   });
+
+  // Log when overlay is ready
+  overlayWindow.webContents.on('did-finish-load', () => {
+    console.log('[Main] preload ran →', overlayWindow.webContents.getURL());
+  });
+
+  // Handle errors
+  overlayWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error(`Overlay window failed to load: ${errorDescription} (${errorCode})`);
+    
+    // If in development and failed to connect, it might be that the dev server isn't ready yet
+    if (isDev && errorCode === -102) {
+      console.log('Retrying overlay connection in 1 second...');
+      setTimeout(() => {
+        if (overlayWindow) {
+          overlayWindow.loadURL(overlayUrl);
+        }
+      }, 1000);
+    }
+  });
+
+  return overlayWindow;
 }
 
 // Register global shortcuts
@@ -305,6 +289,14 @@ function registerShortcuts() {
     if (overlayWindow) {
       const [x, y] = overlayWindow.getPosition();
       overlayWindow.setPosition(x, y + moveStep);
+    }
+  });
+
+  // Register global "Ask Sneaky" shortcut (Cmd/Ctrl + Return)
+  globalShortcut.register('CommandOrControl+Return', () => {
+    console.log('Global "Ask Sneaky" shortcut triggered');
+    if (overlayWindow && overlayWindow.webContents) {
+      overlayWindow.webContents.send('ask-sneaky');
     }
   });
 
@@ -420,6 +412,18 @@ function setupIPC() {
     } catch (error) {
       console.error('Transcription error:', error);
       throw error;
+    }
+  });
+
+  // Handle quit app request
+  ipcMain.handle('quit-app', () => {
+    app.quit();
+  });
+
+  // Handle history request
+  ipcMain.on('request-history', () => {
+    if (overlayWindow && overlayWindow.webContents) {
+      overlayWindow.webContents.send('show-history');
     }
   });
 }

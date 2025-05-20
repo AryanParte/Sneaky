@@ -1,4 +1,4 @@
-# Cluely
+# Sneaky
 
 A discreet AI-powered desktop assistant for real-time help during interviews, meetings, or calls.
 
