@@ -237,3 +237,8 @@ contextBridge.exposeInMainWorld(
 );
 
 console.log('[Preload] Electron API exposed on window.electron');
+
+// Add this to the exposed API in contextBridge.exposeInMainWorld
+contextBridge.exposeInMainWorld('electronEnv', {
+  getOpenAIKey: () => process.env.OPENAI_API_KEY || ''
+});

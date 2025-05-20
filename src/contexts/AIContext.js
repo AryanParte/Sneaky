@@ -7,7 +7,7 @@ const AIContext = createContext();
 export const useAI = () => useContext(AIContext);
 
 export const AIProvider = ({ children }) => {
-  const { settings } = useSettings();
+  const { settings, updateSettings } = useSettings();
   const [suggestions, setSuggestions] = useState([]); // deprecated but kept
   const [screenText, setScreenText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -177,7 +177,7 @@ export const AIProvider = ({ children }) => {
 
   /* ------------------------------------------------------------------
      🖥️  Automatic Screen Monitoring (main renderer only)
-     Captures screen every 10 s and feeds OCR text to processScreenContent.
+     Captures screen every 10 s and feeds OCR text to processScreenContent.
      Skips overlay renderer and avoids overlapping requests.
   ------------------------------------------------------------------ */
   useEffect(() => {
@@ -216,8 +216,20 @@ export const AIProvider = ({ children }) => {
   // Send a chat message and get assistant reply
   const sendChatMessage = async (content) => {
     if (!settings.apiKey) {
-      setError('API key is not configured. Please go to settings.');
-      return;
+      // Try to get the key from environment as a last resort
+      const envKey = window.electronEnv?.getOpenAIKey?.();
+      if (envKey) {
+        // Update settings with the environment key
+        if (updateSettings) {
+          await updateSettings({ apiKey: envKey });
+        } else {
+          console.warn('updateSettings not available, using env key directly');
+          settings.apiKey = envKey; // Direct update as fallback
+        }
+      } else {
+        setError('API key is not configured. Please go to settings.');
+        return;
+      }
     }
 
     const trimmed = content.trim();

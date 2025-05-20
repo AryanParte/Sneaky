@@ -47,19 +47,29 @@ export const SettingsProvider = ({ children }) => {
         if (window.electron) {
           console.log('Loading settings from Electron store...');
           const savedSettings = await window.electron.getSettings();
-          if (savedSettings) {
-            console.log('Settings loaded successfully');
-            setSettings(savedSettings);
-          } else {
-            console.log('No saved settings found');
+          
+          // Check if we have an environment API key but no saved key
+          const envKey = window.electronEnv?.getOpenAIKey?.() || '';
+          if (!savedSettings.apiKey && envKey) {
+            savedSettings.apiKey = envKey;
+            await window.electron.saveSettings(savedSettings); // persist once
+            console.log('[Settings] seeded API key from .env');
           }
+          
+          setSettings(savedSettings);
+          setIsLoading(false);
         } else {
           console.log('Electron not available, using default settings');
+          // Also check for env key in the default settings case
+          const envKey = window.electronEnv?.getOpenAIKey?.() || '';
+          const defaultSettings = {
+            apiKey: envKey || '',
+          };
+          setSettings(defaultSettings);
+          setIsLoading(false);
         }
       } catch (error) {
         console.error('Failed to load settings:', error);
-      } finally {
-        setIsLoading(false);
       }
     };
 
