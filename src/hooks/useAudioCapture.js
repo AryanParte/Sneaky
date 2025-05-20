@@ -3,12 +3,41 @@ import RecordRTC from 'recordrtc';
 
 export default function useAudioCapture(active) {
   const recorder = useRef(null);
-  const [busy, setBusy] = useState(false);
+  const stream = useRef(null);
+  const hasStarted = useRef(false);
+  const chunksRef = useRef([]);
+  const headerBlobRef = useRef(null);
+  const [isCapturing, setIsCapturing] = useState(false);
+  
+  // Constants for the sliding window
+  const WINDOW_SEC = 15;
+  const SLICE_MS = 1000;
+  const MAX_CHUNKS = Math.ceil(WINDOW_SEC * 1000 / SLICE_MS);
 
   useEffect(() => {
-    if (!active || busy) return;
-    setBusy(true);
+    if (!active) {
+      // Clean up when deactivated
+      if (recorder.current) {
+        recorder.current.stopRecording(() => {
+          recorder.current = null;
+        });
+      }
+      if (stream.current) {
+        stream.current.getTracks().forEach(track => track.stop());
+        stream.current = null;
+      }
+      hasStarted.current = false;
+      chunksRef.current = []; // Clear the chunks buffer
+      headerBlobRef.current = null; // Clear the header blob
+      setIsCapturing(false);
+      console.log('Audio capture stopped');
+      return;
+    }
 
+    // Don't restart if already started
+    if (hasStarted.current) return;
+
+    // Start recording
     (async () => {
       try {
         // Find BlackHole or Mixed Output device
@@ -19,46 +48,103 @@ export default function useAudioCapture(active) {
         ) || { deviceId: undefined };
 
         // Get audio stream
-        const stream = await navigator.mediaDevices.getUserMedia({
+        stream.current = await navigator.mediaDevices.getUserMedia({
           audio: { deviceId: loopbackDevice.deviceId }
         });
 
-        // Set up recorder
-        recorder.current = new RecordRTC.MediaStreamRecorder(stream, {
+        // Clear the chunks buffer and header blob before starting
+        chunksRef.current = [];
+        headerBlobRef.current = null;
+
+        // Set up recorder using the top-level RecordRTC constructor
+        recorder.current = new RecordRTC(stream.current, {
+          type: 'audio',
           mimeType: 'audio/webm;codecs=opus',
-          timeSlice: 1000, // 1-second chunks
-          ondataavailable: async (blob) => {
-            try {
-              // Send audio to main process for transcription
-              const transcript = await window.electron.transcribeAudio(blob);
-              
-              // Only send non-empty transcripts
-              if (transcript && transcript.trim()) {
-                window.electron.sendSuggestions([{ text: transcript }]);
-              }
-            } catch (error) {
-              console.error('Transcription error:', error);
+          timeSlice: SLICE_MS,
+          ondataavailable: (blob) => {
+            // Store the first chunk as the header (contains EBML headers)
+            if (!headerBlobRef.current) {
+              headerBlobRef.current = blob;
+              console.log('Stored WebM header chunk');
+              return; // Header alone is not used for transcription
             }
+            
+            // Add the new blob to our sliding window
+            chunksRef.current.push(blob);
+            
+            // Keep only the last WINDOW_SEC seconds of audio
+            if (chunksRef.current.length > MAX_CHUNKS) {
+              chunksRef.current.shift(); // Remove the oldest chunk
+            }
+            
+            console.log(`Audio chunk captured (${chunksRef.current.length}/${MAX_CHUNKS})`);
           }
         });
         
-        recorder.current.start();
+        recorder.current.startRecording();
+        hasStarted.current = true;
+        setIsCapturing(true);
         console.log('Audio capture started');
       } catch (error) {
         console.error('Failed to start audio capture:', error);
-        setBusy(false);
+        setIsCapturing(false);
       }
     })();
 
     return () => {
       if (recorder.current) {
-        recorder.current.stop();
-        recorder.current = null;
-        console.log('Audio capture stopped');
+        recorder.current.stopRecording(() => {
+          recorder.current = null;
+        });
       }
-      setBusy(false);
+      if (stream.current) {
+        stream.current.getTracks().forEach(track => track.stop());
+        stream.current = null;
+      }
+      hasStarted.current = false;
+      chunksRef.current = []; // Clear the chunks buffer
+      headerBlobRef.current = null; // Clear the header blob
+      setIsCapturing(false);
+      console.log('Audio capture stopped');
     };
-  }, [active, busy]);
+  }, [active]);
 
-  return { isCapturing: active && !busy };
+  const clipAndTranscribe = async () => {
+    if (!recorder.current || !headerBlobRef.current || chunksRef.current.length === 0) {
+      console.log('No audio data available');
+      return null;
+    }
+    
+    console.log(`Transcribing last ${chunksRef.current.length} seconds of audio...`);
+    
+    try {
+      // Pause recording while we process the audio
+      recorder.current.pauseRecording();
+      
+      // Create a new blob from the header and all chunks in our sliding window
+      const windowBlob = new Blob(
+        [headerBlobRef.current, ...chunksRef.current],
+        { type: 'audio/webm' }
+      );
+      
+      // Resume recording
+      recorder.current.resumeRecording();
+      
+      if (windowBlob.size === 0) {
+        console.log('Audio blob is empty');
+        return null;
+      }
+      
+      console.log(`Sending ${(windowBlob.size / 1024).toFixed(2)} KB audio for transcription`);
+      return await window.electron.transcribeAudio(windowBlob);
+    } catch (error) {
+      console.error('clipAndTranscribe failed:', error);
+      return null;
+    }
+  };
+
+  return { 
+    isCapturing,
+    clipAndTranscribe
+  };
 } 

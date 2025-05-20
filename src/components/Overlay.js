@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSettings } from '../contexts/SettingsContext';
 import { useAI } from '../contexts/AIContext';
+import { MicrophoneIcon } from '@heroicons/react/24/solid';
+import useAudioCapture from '../hooks/useAudioCapture';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -14,7 +16,10 @@ const Overlay = () => {
   const { isProcessing, error, chatHistory, sendChatMessage, isChatProcessing } = useAI();
   const [isInteractive, setIsInteractive] = useState(false);
   const [chatInput, setChatInput] = useState('');
+  const [audioOn, setAudioOn] = useState(false);
+  const { isCapturing, clipAndTranscribe } = useAudioCapture(audioOn);
   const chatEndRef = useRef(null);
+  const [transcribing, setTranscribing] = useState(false);
 
   // Log chat history size 
   console.log('[Overlay Component] Rendering with chat messages:', chatHistory.length);
@@ -39,6 +44,19 @@ const Overlay = () => {
   }, []);
 
   useEffect(() => {
+    // Listen for global shortcut to toggle audio capture
+    if (window.electron && window.electron.onAudioToggle) {
+      const unsubscribe = window.electron.onAudioToggle(() => {
+        setAudioOn(prev => !prev);
+      });
+      
+      return () => {
+        if (unsubscribe) unsubscribe();
+      };
+    }
+  }, []);
+
+  useEffect(() => {
     // Auto‑scroll to bottom when messages update
     if (chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -51,6 +69,34 @@ const Overlay = () => {
         await window.electron.copyToClipboard(text);
       } catch (err) {
         console.error('Failed to copy to clipboard:', err);
+      }
+    }
+  };
+
+  const toggleAudio = () => {
+    setAudioOn(prev => !prev);
+  };
+
+  const handleInputKeyDown = async (e) => {
+    // Check if it's Enter key with Cmd/Ctrl modifier
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      
+      if (audioOn) {
+        // If audio is on, clip and transcribe
+        setTranscribing(true);
+        const transcript = await clipAndTranscribe();
+        setTranscribing(false);
+        
+        if (transcript && transcript.trim()) {
+          // Add prompt context for the AI
+          const promptWithContext = "The following transcript contains two speakers; assume lines ending in '?' are the interviewer. Respond concisely.\n\n" + transcript;
+          sendChatMessage(promptWithContext);
+        }
+      } else if (chatInput.trim()) {
+        // If audio is off and there's text input, send the text
+        sendChatMessage(chatInput);
+        setChatInput('');
       }
     }
   };
@@ -93,7 +139,7 @@ const Overlay = () => {
                     rehypePlugins={[rehypeKatex, rehypeHighlight]}
                     components={{
                       p: ({node, ...props}) => <p className="break-words whitespace-pre-wrap" {...props} />, 
-                      li: ({node, ...props}) => <li className="break-words whitespace-pre-wrap list-inside list-disc" {...props} />, 
+                      li: ({node, ...props}) => <li className="break-words whitespace-pre-wrap list-inside list-disc" {...props} />,
                       code: ({node, inline, className, children, ...props}) => {
                         const content = String(children).trim();
                         // Single-line, short blocks render inline
@@ -141,29 +187,41 @@ const Overlay = () => {
             <input
               type="text"
               className="flex-1 bg-gray-700/70 text-white text-base px-4 py-3 rounded-lg outline-none placeholder-gray-300 border border-gray-500/20 focus:ring-2 focus:ring-blue-400 transition"
-              placeholder="Type a message…"
+              placeholder={audioOn ? "Press ⌘+Return to transcribe audio..." : "Type a message, then press ⌘+Return to send..."}
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && chatInput.trim()) {
-                  sendChatMessage(chatInput);
-                  setChatInput('');
-                }
-              }}
+              onKeyDown={handleInputKeyDown}
               style={{ WebkitAppRegion: 'no-drag' }}
             />
+            
+            {/* Microphone button - moved inside chat input bar */}
             <button
-              className="bg-blue-500 hover:bg-blue-600 px-6 py-3 rounded-lg text-base font-semibold disabled:opacity-50 transition"
-              disabled={!chatInput.trim()}
-              onClick={() => {
-                if (chatInput.trim()) {
-                  sendChatMessage(chatInput);
-                  setChatInput('');
-                }
-              }}
+              onClick={toggleAudio}
+              disabled={transcribing}
+              className={`flex items-center justify-center w-12 rounded-lg transition-colors ${
+                transcribing 
+                  ? 'bg-yellow-400 animate-pulse' 
+                  : audioOn 
+                    ? 'bg-red-500 animate-pulse' 
+                    : 'bg-green-500 hover:bg-green-600'
+              }`}
+              aria-label={
+                transcribing 
+                  ? 'Transcribing audio...' 
+                  : audioOn 
+                    ? 'Stop audio capture' 
+                    : 'Start audio capture'
+              }
+              title={
+                transcribing 
+                  ? 'Transcribing audio...' 
+                  : audioOn 
+                    ? 'Stop audio capture' 
+                    : 'Start audio capture'
+              }
               style={{ WebkitAppRegion: 'no-drag' }}
             >
-              Send
+              <MicrophoneIcon className={`h-6 w-6 text-white ${transcribing ? 'animate-spin' : ''}`} />
             </button>
           </div>
           <div className="mt-1" />

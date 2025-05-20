@@ -158,6 +158,7 @@ function createOverlayWindow() {
     overlayWindow.once('ready-to-show', () => {
       console.log('Overlay window ready to show');
       overlayWindow.show();
+      overlayWindow.focus();
       // Initialize click-through for View Mode (forward clicks)
       overlayWindow.setIgnoreMouseEvents(overlayIgnoreMouse, { forward: overlayIgnoreMouse });
       overlayWindow.webContents.send('toggle-interactive-mode', !overlayIgnoreMouse);
@@ -234,6 +235,7 @@ function registerShortcuts() {
       } else {
         console.log('Showing overlay window');
         overlayWindow.show();
+        overlayWindow.focus();
       }
     } else {
       console.log('Creating overlay window');
@@ -264,8 +266,15 @@ function registerShortcuts() {
   }
 
   try {
+    // Audio capture shortcut - send to all windows
     globalShortcut.register('CommandOrControl+Shift+A', () => {
-      if (mainWindow) mainWindow.webContents.send('toggle-audio');
+      console.log('Audio capture shortcut triggered');
+      // Send to all windows instead of just mainWindow
+      BrowserWindow.getAllWindows().forEach(window => {
+        if (!window.isDestroyed()) {
+          window.webContents.send('toggle-audio');
+        }
+      });
     });
     console.log('- Audio Capture Shortcut registered');
   } catch (e) {

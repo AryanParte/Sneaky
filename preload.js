@@ -213,7 +213,11 @@ contextBridge.exposeInMainWorld(
     // Utility function to check if running in Electron
     isElectron: true,
     
-    onAudioToggle: (callback) => ipcRenderer.on('toggle-audio', callback),
+    onAudioToggle: (callback) => {
+      const listener = () => callback();
+      ipcRenderer.on('toggle-audio', listener);
+      return () => ipcRenderer.removeListener('toggle-audio', listener);
+    },
     sendSuggestions: (data) => ipcRenderer.send('suggestions', data),
     transcribeAudio: (blob) => {
       return new Promise((resolve, reject) => {
