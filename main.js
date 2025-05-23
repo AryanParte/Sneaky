@@ -1,6 +1,14 @@
 const { app, BrowserWindow, globalShortcut, ipcMain, clipboard } = require('electron');
+
+// Development flag that never throws in production
+let isDev;
+try {                    // works in dev when package is installed
+  isDev = require('electron-is-dev');   
+} catch {                // falls back in packaged app
+  isDev = !app.isPackaged;
+}
+
 const path = require('path');
-const isDev = require('electron-is-dev');
 const { screen } = require('electron');
 const Store = require('electron-store');
 const http = require('http');
@@ -211,7 +219,7 @@ function createOverlayWindow() {
   // Load the overlay URL
   const overlayUrl = isDev
     ? `http://${REACT_DEV_HOST}:${REACT_DEV_PORT}/#/overlay`
-    : `file://${path.join(__dirname, '../build/index.html')}#/overlay`;
+    : `file://${path.join(__dirname, 'build/index.html')}#/overlay`;
   
   console.log(`Loading overlay URL: ${overlayUrl}`);
   overlayWindow.loadURL(overlayUrl);
@@ -488,12 +496,13 @@ function setupIPC() {
 
 // App lifecycle events
 app.whenReady().then(() => {
-  console.log('App is ready, launching overlay only...');
+  console.log('App is ready');
   setupIPC();
-  // Register shortcuts for overlay interactions
+  createOverlayWindow();          // Always create overlay window
+  if (isDev) {                    // Only create main window in development
+    createMainWindow();
+  }
   registerShortcuts();
-  // Directly create the overlay window
-  createOverlayWindow();
 });
 
 app.on('window-all-closed', () => {
@@ -504,7 +513,10 @@ app.on('window-all-closed', () => {
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
-    createMainWindow();
+    createOverlayWindow();
+    if (isDev) {
+      createMainWindow();
+    }
   }
 });
 

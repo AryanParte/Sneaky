@@ -1,6 +1,13 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
-const isDev = require('electron-is-dev');
+
+// Development flag that never throws in production
+let isDev;
+try {                    // works in dev when package is installed
+  isDev = require('electron-is-dev');   
+} catch {                // falls back in packaged app
+  isDev = !app.isPackaged;
+}
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
