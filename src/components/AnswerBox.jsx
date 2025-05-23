@@ -11,7 +11,14 @@ const AnswerBox = ({ markdown }) => {
   if (!markdown) return null;
   
   return (
-    <div className="mt-2 p-4 bg-gray-800/80 rounded-lg shadow-lg max-h-[300px] overflow-y-auto">
+    <div
+      className="
+        mt-2 p-4 bg-gray-800/80 rounded-lg shadow-lg
+        overflow-y-auto                /* scroll only when needed   */
+        max-h-[calc(100vh-8rem)]       /* never exceed viewport     */
+        transition-all duration-200
+      "
+    >
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex, rehypeHighlight]}

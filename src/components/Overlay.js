@@ -17,6 +17,8 @@ const Overlay = () => {
   const [history, setHistory] = useState([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const [hasBlackHole, setHasBlackHole] = useState(true);
+  const [showBlackHoleBanner, setShowBlackHoleBanner] = useState(false);
   const inputRef = useRef(null);
   const { isCapturing, clipAndTranscribe } = useAudioCapture(audioOn);
 
@@ -24,6 +26,21 @@ const Overlay = () => {
   const overlayStyle = {
     opacity: settings.opacity
   };
+
+  // Check for BlackHole on mount
+  useEffect(() => {
+    if (window.electron?.audioEnv?.hasBlackHole) {
+      const checkBlackHole = async () => {
+        const installed = await window.electron.audioEnv.hasBlackHole();
+        setHasBlackHole(installed);
+        setShowBlackHoleBanner(!installed);
+        if (!installed) {
+          setAnswer('🔊 Finish installing the BlackHole audio driver — we opened the installer for you.');
+        }
+      };
+      checkBlackHole();
+    }
+  }, []);
 
   useEffect(() => {
     // Set up event listener for interactive mode toggle
@@ -93,6 +110,75 @@ const Overlay = () => {
     }
   };
 
+  // Helper function to build appropriate prompt based on screen content
+  const buildPromptForScreen = (text) => {
+    // LeetCode detection keywords
+    const codingChallengeKeywords = [
+      'leetcode',
+      'constraints:',
+      'example 1',
+      'example 2',
+      'example:',
+      'given an array',
+      'write a function',
+      'implement a',
+      'return the',
+      'design an algorithm',
+      'time complexity',
+      'space complexity',
+      'input:',
+      'output:',
+      'class solution',
+      'test cases',
+      'algorithm',
+      'coding challenge',
+      'coding problem'
+    ];
+    
+    // Check if text contains any coding challenge keywords (case insensitive)
+    const lowerText = text.toLowerCase();
+    const isCodingChallenge = codingChallengeKeywords.some(keyword => 
+      lowerText.includes(keyword.toLowerCase())
+    );
+    
+    if (isCodingChallenge) {
+      // Language detection keywords
+      const languages = {
+        'python': ['python', 'def ', 'class solution', ':'],
+        'javascript': ['javascript', 'js', 'function', 'const ', 'let ', '=> {', '() {'],
+        'java': ['java', 'public class', 'public static', '}', 'int[] '],
+        'c++': ['c++', 'cpp', '#include', 'vector<', 'int main'],
+        'go': ['golang', 'go', 'func ', 'package main'],
+        'c#': ['c#', 'csharp', 'namespace', 'using System']
+      };
+      
+      // Try to detect language
+      let detectedLanguage = 'python'; // Default to Python
+      for (const [language, keywords] of Object.entries(languages)) {
+        if (keywords.some(keyword => lowerText.includes(keyword.toLowerCase()))) {
+          detectedLanguage = language;
+          break;
+        }
+      }
+      
+      // Build coding challenge prompt
+      return `You are a coding assistant helping with programming problems.
+
+IMPORTANT: I'm showing you a LeetCode-style coding challenge. Respond in this exact format:
+
+1. First, provide ONE complete working solution in ${detectedLanguage}.
+2. Put your code in a SINGLE Markdown code block.
+3. After the code, include at most 3 VERY SHORT bullet points explaining your approach.
+4. Do not include any other text, greetings, or explanations.
+
+Here is the problem:
+${text}`;
+    } else {
+      // Default bullet point format for non-coding content
+      return "You are an AI overlay for live sales calls.\n\nWhen given a screenshot text, reply ONLY with 3-5 bullet points (●).\n\nEach bullet ≤ 15 words.\n\nNo greeting, no conclusion, just the bullets in Markdown.\n\nScreen text:\n" + text;
+    }
+  };
+
   // Centralized function to handle the "Ask Sneaky" action
   const doAskSneaky = async () => {
     try {
@@ -122,9 +208,9 @@ const Overlay = () => {
         // If no input and no audio, trigger screen capture
         const result = await window.electron?.captureScreen?.();
         if (result?.success && result.text?.trim()) {
-          // Format the prompt for bullet points
-          const promptWithContext = "You are an AI overlay for live sales calls.\n\nWhen given a screenshot text, reply ONLY with 3-5 bullet points (●).\n\nEach bullet ≤ 15 words.\n\nNo greeting, no conclusion, just the bullets in Markdown.\n\nScreen text:\n" + result.text;
-          const response = await sendChatMessage(promptWithContext, false);
+          // Use the smart prompt builder instead of hard-coded prompt
+          const prompt = buildPromptForScreen(result.text);
+          const response = await sendChatMessage(prompt, false);
           handleChatResponse(response);
         } else {
           // Handle empty OCR result
@@ -181,6 +267,13 @@ const Overlay = () => {
           pointerEvents: 'auto'
         }}
       >
+        {/* BlackHole Banner */}
+        {showBlackHoleBanner && (
+          <div className="px-4 py-2 bg-yellow-500/70 text-white rounded-t-lg">
+            ⚠️ BlackHole audio driver required
+          </div>
+        )}
+
         {/* Command Bar */}
         <CommandBar 
           audioOn={audioOn}

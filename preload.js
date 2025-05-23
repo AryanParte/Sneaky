@@ -2,9 +2,21 @@ const { contextBridge, ipcRenderer } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { execSync } = require('child_process');
 
 // Log that preload script is running
 console.log('[Preload] Script started');
+
+// Function to check if BlackHole is installed
+const hasBlackHole = () => {
+  try {
+    const output = execSync('system_profiler SPAudioDataType').toString();
+    return output.includes('BlackHole 2ch');
+  } catch (error) {
+    console.error('[Preload] Error checking BlackHole:', error);
+    return false;
+  }
+};
 
 // Try to load robotjs, screenshot-desktop, and Tesseract, but don't fail if they're not available
 let robot = null;
@@ -42,6 +54,11 @@ try {
 contextBridge.exposeInMainWorld(
   'electron',
   {
+    // Audio environment functions
+    audioEnv: {
+      hasBlackHole: () => hasBlackHole()
+    },
+    
     // Screen capture and OCR functions
     captureScreen: async () => {
       console.log('[Preload] captureScreen called');

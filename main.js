@@ -6,11 +6,18 @@ const Store = require('electron-store');
 const http = require('http');
 const fetch = require('node-fetch');
 const FormData = require('form-data');
+const { autoUpdater } = require('electron-updater');
+const { exec } = require('child_process');
+const fs = require('fs');
 // Load environment variables
 require('dotenv').config();
 
 // Initialize the settings store
 const store = new Store();
+
+// Configure auto-updater
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = true;
 
 // Keep a global reference of the window objects
 let mainWindow = null;
@@ -25,6 +32,41 @@ let lastSuggestions = [];
 // React development server port
 const REACT_DEV_PORT = 3002; // Changed from 3001
 const REACT_DEV_HOST = '127.0.0.1'; // Use IPv4 address explicitly
+
+// Function to check if BlackHole is installed
+function checkBlackHoleInstalled() {
+  return new Promise((resolve) => {
+    exec('pkgutil --pkgs | grep com.existential.audio.BlackHole2ch', (error, stdout) => {
+      resolve(!!stdout.trim());
+    });
+  });
+}
+
+// Function to install BlackHole
+function installBlackHole() {
+  return new Promise((resolve, reject) => {
+    const pkgPath = isDev 
+      ? path.join(__dirname, 'resources/BlackHole2ch.v0.6.1.pkg')
+      : path.join(process.resourcesPath, 'BlackHole2ch.v0.6.1.pkg');
+    
+    console.log(`Installing BlackHole from: ${pkgPath}`);
+    
+    if (!fs.existsSync(pkgPath)) {
+      console.error('BlackHole package not found at path:', pkgPath);
+      return reject(new Error('BlackHole package not found'));
+    }
+
+    exec(`open "${pkgPath}"`, (error) => {
+      if (error) {
+        console.error('Error installing BlackHole:', error);
+        reject(error);
+      } else {
+        console.log('BlackHole installation started');
+        resolve();
+      }
+    });
+  });
+}
 
 // Check if the React development server is ready
 function checkReactDevServerReady(callback) {
@@ -83,6 +125,17 @@ function createMainWindow() {
       console.log('Main window ready to show');
       mainWindow.show();
       mainWindow.focus();
+      
+      // Check for BlackHole and install if needed
+      checkBlackHoleInstalled().then(installed => {
+        console.log('BlackHole installed:', installed);
+        if (!installed) {
+          installBlackHole().catch(err => {
+            console.error('Failed to install BlackHole:', err);
+          });
+        }
+      });
+      
       // Open DevTools automatically in development
       if (isDev) {
         mainWindow.webContents.openDevTools();
@@ -90,6 +143,11 @@ function createMainWindow() {
       
       // Register global shortcuts after window is ready
       registerShortcuts();
+
+      // Check for updates
+      if (!isDev) {
+        autoUpdater.checkForUpdatesAndNotify();
+      }
     });
     
     mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
@@ -124,7 +182,7 @@ function createOverlayWindow() {
   // Create overlay window
   overlayWindow = new BrowserWindow({
     width: width,
-    height: Math.round(height / 2),
+    height: Math.round(height * 0.9),  // 90% of screen height instead of half
     x: 0,
     y: 0,
     frame: false,
@@ -454,4 +512,25 @@ app.on('will-quit', () => {
   // Unregister all shortcuts
   console.log('Unregistering all shortcuts');
   globalShortcut.unregisterAll();
+});
+
+// Add auto-updater event handlers
+autoUpdater.on('update-available', (info) => {
+  console.log('Update available:', info);
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+  console.log('Update downloaded:', info);
+  if (mainWindow) {
+    mainWindow.webContents.send('update-downloaded', info);
+  }
+});
+
+autoUpdater.on('error', (err) => {
+  console.error('Auto-updater error:', err);
+});
+
+// Handle IPC messages for updates
+ipcMain.handle('install-update', () => {
+  autoUpdater.quitAndInstall();
 });

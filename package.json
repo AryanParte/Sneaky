@@ -1,6 +1,6 @@
 {
-  "name": "cluely",
-  "version": "0.1.0",
+  "name": "sneaky",
+  "version": "0.2.0",
   "description": "A discreet AI-powered desktop assistant for real-time help during interviews, meetings, or calls",
   "main": "main.js",
   "scripts": {
@@ -10,12 +10,10 @@
     "react-build": "react-scripts build",
     "react-test": "react-scripts test",
     "react-eject": "react-scripts eject",
-    "electron-rebuild": "electron-rebuild -f -w robotjs",
-    "postinstall": "npm run electron-rebuild",
     "build": "npm run react-build && electron-builder",
-    "package": "electron-builder build --mac --win --publish never"
+    "package": "electron-builder build --mac --publish never"
   },
-  "author": "",
+  "author": "AryanParte",
   "license": "MIT",
   "dependencies": {
     "@electron/remote": "^2.0.10",
@@ -24,6 +22,7 @@
     "dotenv": "^16.5.0",
     "electron-is-dev": "^2.0.0",
     "electron-store": "^8.1.0",
+    "electron-updater": "^6.1.7",
     "form-data": "^4.0.2",
     "highlight.js": "^11.11.1",
     "katex": "^0.16.22",
@@ -40,7 +39,6 @@
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
-    "robotjs": "^0.6.0",
     "screenshot-desktop": "^1.15.1",
     "tailwindcss": "^3.3.5"
   },
@@ -48,23 +46,40 @@
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
     "electron": "^36.2.0",
-    "electron-builder": "^24.6.4",
-    "electron-rebuild": "^3.2.9"
+    "electron-builder": "^24.13.3"
   },
   "build": {
-    "appId": "com.cluely.app",
-    "productName": "Cluely",
+    "appId": "com.sneaky.app",
+    "productName": "Sneaky",
     "mac": {
-      "category": "public.app-category.productivity"
+      "category": "public.app-category.productivity",
+      "target": [
+        { "target": "dmg", "arch": ["arm64", "x64"] },
+        { "target": "pkg", "arch": ["arm64", "x64"] }
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "files": [
       "build/**/*",
-      "node_modules/**/*",
       "main.js",
-      "preload.js"
+      "preload.js",
+      "node_modules/**/*",
+      "package.json",
+      "scripts/**/*"
+    ],
+    "extraResources": [
+      "resources/BlackHole2ch.v0.6.1.pkg"
     ],
     "directories": {
       "buildResources": "assets"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "AryanParte",
+      "repo": "Sneaky"
     }
   },
   "browserslist": {
