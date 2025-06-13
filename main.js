@@ -1,12 +1,5 @@
 const { app, BrowserWindow, globalShortcut, ipcMain, clipboard } = require('electron');
-
-// Development flag that never throws in production
-let isDev;
-try {                    // works in dev when package is installed
-  isDev = require('electron-is-dev');   
-} catch {                // falls back in packaged app
-  isDev = !app.isPackaged;
-}
+const isDev = !app.isPackaged;    // dev when running via `npm run dev`
 
 const path = require('path');
 const { screen } = require('electron');

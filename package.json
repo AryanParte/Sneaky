@@ -51,6 +51,7 @@
   "build": {
     "appId": "com.sneaky.app",
     "productName": "Sneaky",
+    "extends": null,
     "mac": {
       "category": "public.app-category.productivity",
       "target": [
@@ -78,9 +79,9 @@
       "build/**/*",
       "main.js",
       "preload.js",
+      "resources/**/*",
       "node_modules/**/*",
-      "package.json",
-      "scripts/**/*"
+      "package.json"
     ],
     "extraResources": [
       "resources/BlackHole2ch.v0.6.1.pkg"
