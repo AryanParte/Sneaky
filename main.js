@@ -138,10 +138,6 @@ function createMainWindow() {
       });
       
       // Open DevTools automatically in development
-      if (isDev) {
-        mainWindow.webContents.openDevTools();
-      }
-      
       // Register global shortcuts after window is ready
       registerShortcuts();
 
@@ -180,12 +176,17 @@ function createOverlayWindow() {
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width, height } = primaryDisplay.workAreaSize;
 
+  const overlayWidth = Math.min(960, Math.round(width * 0.68));
+  const overlayHeight = Math.min(360, Math.round(height * 0.32));
+  const startX = Math.round((width - overlayWidth) / 2);
+  const startY = Math.max(24, Math.round(height - overlayHeight - 80));
+
   // Create overlay window
   overlayWindow = new BrowserWindow({
-    width: width,
-    height: Math.round(height * 0.9),  // 90% of screen height instead of half
-    x: 0,
-    y: 0,
+    width: overlayWidth,
+    height: overlayHeight,
+    x: startX,
+    y: startY,
     frame: false,
     transparent: true,
     alwaysOnTop: true,            // keep above normal windows
@@ -325,7 +326,7 @@ function registerShortcuts() {
   }
   
   // Keyboard move shortcuts for overlay (Cmd/Ctrl+Shift+Arrow)
-  const moveStep = 20;
+  const moveStep = 80;
   globalShortcut.register('CommandOrControl+Shift+Left', () => {
     if (overlayWindow) {
       const [x, y] = overlayWindow.getPosition();

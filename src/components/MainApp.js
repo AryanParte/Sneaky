@@ -111,84 +111,181 @@ const MainApp = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-xl">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="rounded-full border border-white/10 px-6 py-3 text-sm tracking-widest uppercase text-slate-300/80">
+          Preparing Sneaky...
+        </div>
       </div>
     );
   }
 
+  const shortcuts = [
+    {
+      label: 'Toggle overlay',
+      combo: 'Cmd + Shift + O',
+      alt: 'Ctrl + Shift + O',
+      description: 'Reveal the floating command surface.'
+    },
+    {
+      label: 'Interactive mode',
+      combo: 'Cmd + Shift + I',
+      alt: 'Ctrl + Shift + I',
+      description: 'Switch between click-through and interactive modes.'
+    },
+    {
+      label: 'Screen capture',
+      combo: 'Cmd + Shift + Space',
+      alt: 'Ctrl + Shift + Space',
+      description: 'Snapshot the active window and get instant notes.'
+    },
+    {
+      label: 'Audio capture',
+      combo: 'Cmd + Shift + A',
+      alt: 'Ctrl + Shift + A',
+      description: 'Summarise the last few seconds of conversation.'
+    }
+  ];
+
+  const statusItems = [
+    {
+      label: 'API key',
+      value: settings.apiKey ? 'Configured' : 'Missing',
+      state: settings.apiKey
+    },
+    {
+      label: 'Model',
+      value: settings.modelName,
+      state: true
+    },
+    {
+      label: 'Screen capture',
+      value: settings.enableScreen ? 'Enabled' : 'Disabled',
+      state: settings.enableScreen
+    },
+    {
+      label: 'Audio transcription',
+      value: settings.enableAudio ? 'Enabled' : 'Disabled',
+      state: settings.enableAudio
+    },
+    {
+      label: 'Electron mode',
+      value: isElectron ? 'Running natively' : 'Browser preview',
+      state: isElectron
+    }
+  ];
+
+  const cardClass = 'rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0px_25px_60px_-25px_rgba(15,23,42,0.45)]';
+  const pillClass = 'inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.4em] text-slate-300/80';
+
   return (
-    <div className="container mx-auto p-6">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Sneaky</h1>
-        <p className="text-gray-600">Your discreet AI-powered desktop assistant</p>
-      </header>
-
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Quick Start</h2>
-        
-        <div className="mb-4">
-          <p className="mb-2"><strong>Screen Capture:</strong> Press <code>Cmd+Shift+Space</code> (Mac) or <code>Ctrl+Shift+Space</code> (Windows/Linux)</p>
-          <p className="mb-2"><strong>Toggle Overlay:</strong> Press <code>Cmd+Shift+O</code> (Mac) or <code>Ctrl+Shift+O</code> (Windows/Linux)</p>
-          <p className="mb-2"><strong>Toggle Interactive Mode:</strong> Press <code>Cmd+Shift+I</code> (Mac) or <code>Ctrl+Shift+I</code> (Windows/Linux)</p>
-          <p className="mb-2"><strong>Audio Capture:</strong> Press <code>Cmd+Shift+A</code> (Mac) or <code>Ctrl+Shift+A</code> (Windows/Linux)</p>
-        </div>
-        
-        <div className="flex space-x-4">
-          <button 
-            onClick={handleScreenCapture}
-            disabled={isProcessing}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
+    <div className="min-h-screen px-4 py-10 md:px-10">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-10">
+        <header className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-6">
+            <span className={pillClass}>Sneaky</span>
+            <div className="space-y-3">
+              <h1 className="text-4xl font-semibold text-slate-100 md:text-5xl">
+                A minimal co-pilot that stays out of the way.
+              </h1>
+              <p className="max-w-xl text-base text-slate-400">
+                Trigger Sneaky from anywhere, capture context quietly, and surface the answers you need without breaking focus.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/settings"
+            className="inline-flex h-11 items-center rounded-full border border-white/10 bg-white/10 px-5 text-sm font-medium text-slate-100 transition hover:border-white/20 hover:bg-white/20"
           >
-            {isProcessing ? 'Processing...' : 'Test Screen Capture'}
-          </button>
-          <button 
-            onClick={handleAudioCapture}
-            disabled={isProcessing}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
-          >
-            {isProcessing ? 'Processing...' : 'Test Audio Capture'}
-          </button>
-          <Link 
-            to="/settings" 
-            className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded"
-          >
-            Settings
+            Open Settings
           </Link>
-        </div>
-        
-        {captureStatus && (
-          <div className="mt-4 p-3 bg-gray-100 rounded">
-            {captureStatus}
-          </div>
-        )}
-        
-        {error && (
-          <div className="mt-4 p-3 bg-red-100 text-red-700 rounded">
-            {error}
-          </div>
-        )}
-        
-        {!isElectron && (
-          <div className="mt-4 p-3 bg-yellow-100 text-yellow-700 rounded">
-            <p><strong>Note:</strong> You're currently running in a browser environment. For full functionality (screen capture, overlay, etc.), please run as an Electron app using <code>npm run dev</code> in your terminal.</p>
-          </div>
-        )}
-      </div>
+        </header>
 
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-semibold mb-4">Status</h2>
-        
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p><strong>API Key:</strong> {settings.apiKey ? '✅ Configured' : '❌ Not configured'}</p>
-            <p><strong>Model:</strong> {settings.modelName}</p>
-          </div>
-          <div>
-            <p><strong>Screen Capture:</strong> {settings.enableScreen ? '✅ Enabled' : '❌ Disabled'}</p>
-            <p><strong>Audio Transcription:</strong> {settings.enableAudio ? '✅ Enabled' : '❌ Disabled'}</p>
-            <p><strong>Electron Mode:</strong> {isElectron ? '✅ Active' : '❌ Browser Preview'}</p>
-          </div>
+        <div className="grid gap-6 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <section className={`${cardClass} p-6 md:p-8 space-y-8`}>
+            <div className="space-y-2">
+              <div className="space-y-4 sm:space-y-5">
+                <div className="sm:flex sm:flex-col">
+                  <h2 className="text-xl font-medium text-slate-100">Quick actions</h2>
+                  <p className="text-sm leading-relaxed text-slate-400">
+                    Run a dry run or use a shortcut to call Sneaky instantly.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+                  <button
+                    onClick={handleScreenCapture}
+                    disabled={isProcessing}
+                    className="inline-flex h-11 items-center justify-center rounded-full border border-sky-400/40 bg-sky-500/20 px-6 text-sm font-medium text-slate-100 transition-colors disabled:cursor-not-allowed disabled:opacity-40 hover:bg-sky-500/30 whitespace-nowrap"
+                  >
+                    {isProcessing ? 'Processing...' : 'Test screen capture'}
+                  </button>
+                  <button
+                    onClick={handleAudioCapture}
+                    disabled={isProcessing}
+                    className="inline-flex h-11 items-center justify-center rounded-full border border-indigo-400/40 bg-indigo-500/20 px-6 text-sm font-medium text-slate-100 transition-colors disabled:cursor-not-allowed disabled:opacity-40 hover:bg-indigo-500/30 whitespace-nowrap"
+                  >
+                    {isProcessing ? 'Processing...' : 'Test audio capture'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {captureStatus && (
+              <div className="rounded-2xl border border-sky-500/40 bg-sky-500/10 px-4 py-3 text-sm text-slate-100">
+                {captureStatus}
+              </div>
+            )}
+
+            {error && (
+              <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+                {error}
+              </div>
+            )}
+
+            {!isElectron && (
+              <div className="rounded-2xl border border-amber-400/40 bg-amber-400/20 px-4 py-3 text-sm text-slate-900">
+                <strong>Heads up:</strong> Sneaky runs best inside the desktop app. Launch with <code className="rounded bg-slate-900/80 px-1 py-0.5 text-xs text-slate-200">npm run dev</code> to unlock captures and overlays.
+              </div>
+            )}
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {shortcuts.map((item) => (
+                <div
+                  key={item.label}
+                  className="group rounded-2xl border border-white/5 bg-slate-950/30 p-4 transition hover:border-white/15 hover:bg-slate-950/50"
+                >
+                  <div className="text-xs uppercase tracking-[0.2em] text-slate-400/80">
+                    {item.label}
+                  </div>
+                  <div className="mt-3 space-y-1 text-sm text-slate-200">
+                    <div className="font-medium text-slate-100">{item.combo}</div>
+                    <div className="text-slate-400">{item.alt}</div>
+                  </div>
+                  <p className="mt-4 text-xs text-slate-500">{item.description}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <aside className={`${cardClass} p-6 md:p-8 space-y-6`}>
+            <div>
+              <h2 className="text-xl font-medium text-slate-100">Status</h2>
+              <p className="mt-1 text-sm text-slate-500">Keep your basics in a good state for instant responses.</p>
+            </div>
+            <div className="space-y-4">
+              {statusItems.map((item) => (
+                <div
+                  key={item.label}
+                  className="flex items-center justify-between rounded-2xl border border-white/5 bg-slate-950/30 px-4 py-3"
+                >
+                  <div>
+                    <div className="text-xs uppercase tracking-[0.25em] text-slate-400/80">{item.label}</div>
+                    <div className="mt-1 text-sm font-medium text-slate-100">{item.value}</div>
+                  </div>
+                  <div className={`h-2.5 w-2.5 rounded-full ${item.state ? 'bg-emerald-400' : 'bg-rose-500'}`}></div>
+                </div>
+              ))}
+            </div>
+          </aside>
         </div>
       </div>
     </div>

@@ -10,104 +10,143 @@ const CommandBar = ({
   onTextToggle, 
   onStartOver,
   onShowHistory,
-  onQuit
+  onQuit,
+  onAsk,
+  surfaceTone
 }) => {
   const [menuOpen, setMenuOpen] = React.useState(false);
-  
-  // Determine microphone button class based on state
-  const micButtonClass = `p-2 rounded-lg transition-colors ${
-    transcribing
-      ? 'bg-yellow-500 animate-pulse'
-      : audioOn
-        ? 'bg-red-500 animate-pulse'
-        : 'bg-gray-700 hover:bg-gray-600'
-  }`;
-  
+
+  const containerStyle = surfaceTone
+    ? {
+        WebkitAppRegion: 'drag',
+        backgroundColor: surfaceTone.background,
+        border: `1px solid ${surfaceTone.border}`
+      }
+    : { WebkitAppRegion: 'drag' };
+
+  const baseButtonClass = 'inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-100 transition focus:outline-none backdrop-blur';
+
+  const baseButtonStyle = surfaceTone
+    ? {
+        border: `1px solid ${surfaceTone.border}`,
+        backgroundColor: surfaceTone.background
+      }
+    : {};
+
+  const tintedStyle = (border, background, text) => ({
+    border,
+    backgroundColor: background,
+    color: text
+  });
+
+  const micButtonStyle = transcribing
+    ? tintedStyle('1px solid rgba(252, 211, 77, 0.55)', 'rgba(252, 211, 77, 0.35)', '#92400e')
+    : audioOn
+      ? tintedStyle('1px solid rgba(248, 113, 113, 0.6)', 'rgba(248, 113, 113, 0.35)', '#7f1d1d')
+      : baseButtonStyle;
+
+  const textButtonStyle = isTextMode
+    ? tintedStyle('1px solid rgba(125, 211, 252, 0.6)', 'rgba(186, 230, 253, 0.35)', '#0c4a6e')
+    : baseButtonStyle;
+
   return (
-    <div className="flex items-center justify-between w-full bg-gray-800/90 rounded-lg p-2 shadow-lg" 
-         style={{ WebkitAppRegion: 'drag' }}>
-      <div className="flex items-center space-x-2" style={{ WebkitAppRegion: 'no-drag' }}>
+    <div
+      className="flex w-full items-center justify-between rounded-full px-3 py-2 text-slate-100 backdrop-blur-2xl"
+      style={containerStyle}
+    >
+      <div className="flex items-center gap-2" style={{ WebkitAppRegion: 'no-drag' }}>
         <button
           onClick={onAudioToggle}
-          className={micButtonClass}
-          title={
-            transcribing 
-              ? 'Transcribing audio...' 
-              : audioOn 
-                ? 'Stop audio capture' 
-                : 'Start audio capture'
-          }
+          className={baseButtonClass}
+          title={transcribing ? 'Transcribing audio' : audioOn ? 'Mute mic capture' : 'Enable mic capture'}
+          style={micButtonStyle}
         >
-          <MicrophoneIcon className="h-5 w-5 text-white" />
+          <MicrophoneIcon className="h-4 w-4" />
         </button>
-        
-        <div className="h-6 border-r border-gray-600 mx-1"></div>
-        
         <button
           onClick={onTextToggle}
-          className={`p-2 rounded-lg transition-colors ${
-            isTextMode ? 'bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'
-          }`}
-          title={isTextMode ? 'Hide text input' : 'Show text input'}
+          className={baseButtonClass}
+          title={isTextMode ? 'Hide text entry' : 'Show text entry'}
+          style={textButtonStyle}
         >
-          <PencilIcon className="h-5 w-5 text-white" />
+          <PencilIcon className="h-4 w-4" />
         </button>
-        
-        <div className="text-gray-300 text-sm ml-2">
-          Ask Sneaky ⌘ + Return
-        </div>
       </div>
-      
-      <div className="flex items-center space-x-2" style={{ WebkitAppRegion: 'no-drag' }}>
+
+      <div className="flex items-center gap-2" style={{ WebkitAppRegion: 'no-drag' }}>
+        <button
+          onClick={onAsk}
+          className="inline-flex items-center gap-2 rounded-full border border-slate-100/30 bg-slate-50/80 px-5 py-2 text-sm font-medium text-slate-900 transition hover:bg-white"
+        >
+          Ask
+          <span className="hidden text-[0.65rem] uppercase tracking-[0.4em] text-slate-500 sm:inline">Cmd↩︎</span>
+        </button>
+      </div>
+
+      <div className="flex items-center gap-2" style={{ WebkitAppRegion: 'no-drag' }}>
         <button
           onClick={onStartOver}
-          className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors"
-          title="Start over"
+          className={baseButtonClass}
+          title="Clear reply"
+          style={baseButtonStyle}
         >
-          <ArrowPathIcon className="h-5 w-5 text-white" />
-          <span className="sr-only">Start Over</span>
+          <ArrowPathIcon className="h-4 w-4" />
         </button>
-        
-        <div className="relative">
+
+        <div className="relative hidden sm:block">
           <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors"
+            onClick={() => setMenuOpen((open) => !open)}
+            className={baseButtonClass}
+            title="More"
+            style={baseButtonStyle}
           >
-            <EllipsisVerticalIcon className="h-5 w-5 text-white" />
+            <EllipsisVerticalIcon className="h-4 w-4" />
           </button>
-          
+
           {menuOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg z-10">
-              <div className="py-1">
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onShowHistory();
-                  }}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700"
-                >
-                  View History
-                </button>
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onQuit();
-                  }}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700"
-                >
-                  Quit Sneaky
-                </button>
-              </div>
+            <div
+              className="absolute right-0 z-10 mt-3 w-40 overflow-hidden rounded-2xl text-xs text-slate-100 backdrop-blur"
+              style={{
+                border: `1px solid ${surfaceTone?.border || 'rgba(255,255,255,0.2)'}`,
+                backgroundColor: 'rgba(10, 12, 18, 0.65)'
+              }}
+            >
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  onShowHistory();
+                }}
+                className="block w-full px-4 py-2 text-left transition hover:bg-white/10"
+              >
+                History
+              </button>
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  onQuit();
+                }}
+                className="block w-full px-4 py-2 text-left transition hover:bg-white/10"
+              >
+                Quit Sneaky
+              </button>
             </div>
           )}
         </div>
-        
-        <div className="text-gray-400 text-xs">
-          {isInteractive ? 'Interactive' : 'Click-through'} ⌘+Shift+I
+
+        <div
+          className={`flex h-9 items-center rounded-full px-3 text-[0.65rem] uppercase tracking-[0.35em] ${
+            isInteractive ? 'text-emerald-200' : 'text-slate-200'
+          }`}
+          style={{
+            border: `1px solid ${surfaceTone?.border || 'rgba(255,255,255,0.2)'}`,
+            backgroundColor: surfaceTone?.background
+          }}
+        >
+          {isInteractive ? 'Interact' : 'Ghost'}
         </div>
       </div>
     </div>
   );
 };
 
-export default CommandBar; 
+export default CommandBar;

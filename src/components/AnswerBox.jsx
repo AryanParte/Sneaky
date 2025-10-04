@@ -7,36 +7,44 @@ import rehypeHighlight from 'rehype-highlight';
 import 'highlight.js/styles/github.css';
 import 'katex/dist/katex.min.css';
 
-const AnswerBox = ({ markdown }) => {
+const AnswerBox = ({ markdown, tone }) => {
   if (!markdown) return null;
-  
+
+  const surfaceStyle = tone
+    ? {
+        border: `1px solid ${tone.border}`,
+        backgroundColor: tone.background
+      }
+    : {};
+
   return (
     <div
       className="
-        mt-2 p-4 bg-gray-800/80 rounded-lg shadow-lg
-        overflow-y-auto                /* scroll only when needed   */
-        max-h-[calc(100vh-8rem)]       /* never exceed viewport     */
-        transition-all duration-200
+        mt-2 rounded-3xl p-5 text-sm text-slate-100 backdrop-blur-2xl
+        overflow-y-auto max-h-[calc(100vh-8rem)] transition-all duration-200
       "
+      style={surfaceStyle}
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex, rehypeHighlight]}
         components={{
-          p: ({node, ...props}) => <p className="text-gray-200 mb-2" {...props} />,
-          li: ({node, ...props}) => <li className="text-gray-200 ml-4 mb-1 list-disc" {...props} />,
-          ul: ({node, ...props}) => <ul className="mb-2" {...props} />,
+          p: ({node, ...props}) => <p className="mb-3 leading-relaxed text-slate-100/90" {...props} />,
+          li: ({node, ...props}) => <li className="ml-5 mb-2 list-disc text-slate-100/90" {...props} />,
+          ul: ({node, ...props}) => <ul className="mb-3 space-y-1" {...props} />,
           code: ({node, inline, className, children, ...props}) => {
             const content = String(children).trim();
             if (inline) {
-              return (
-                <code className="bg-gray-700 text-gray-200 px-1 py-0.5 rounded" {...props}>
-                  {content}
-                </code>
-              );
+              return <code className="rounded bg-slate-900/70 px-1.5 py-0.5 text-slate-200" {...props}>{content}</code>;
             }
             return (
-              <pre className="bg-gray-900 text-white text-sm p-3 rounded-lg overflow-x-auto my-2">
+              <pre
+                className="my-3 overflow-x-auto rounded-2xl p-4 text-xs text-slate-900"
+                style={{
+                  border: `1px solid ${tone?.border || 'rgba(255,255,255,0.18)'}`,
+                  backgroundColor: tone?.background || 'rgba(255,255,255,0.1)'
+                }}
+              >
                 <code className={className} {...props}>
                   {children}
                 </code>
@@ -51,4 +59,4 @@ const AnswerBox = ({ markdown }) => {
   );
 };
 
-export default AnswerBox; 
+export default AnswerBox;

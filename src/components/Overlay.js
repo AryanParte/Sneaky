@@ -23,9 +23,29 @@ const Overlay = () => {
   const { isCapturing, clipAndTranscribe } = useAudioCapture(audioOn);
 
   // Set opacity based on settings
-  const overlayStyle = {
-    opacity: settings.opacity
+  const overlayOpacity = Math.min(Math.max(settings.opacity, 0.1), 1);
+  const containerBackgroundAlpha = 0.1 + overlayOpacity * 0.35;
+  const containerBorderAlpha = 0.08 + overlayOpacity * 0.18;
+  const surfaceBackgroundAlpha = 0.04 + overlayOpacity * 0.16;
+  const surfaceBorderAlpha = 0.08 + overlayOpacity * 0.2;
+  const subtleBackgroundAlpha = 0.03 + overlayOpacity * 0.12;
+
+  const surfaceTone = {
+    background: `rgba(255, 255, 255, ${surfaceBackgroundAlpha.toFixed(3)})`,
+    border: `rgba(255, 255, 255, ${surfaceBorderAlpha.toFixed(3)})`
   };
+
+  const subtleTone = {
+    background: `rgba(255, 255, 255, ${subtleBackgroundAlpha.toFixed(3)})`,
+    border: `rgba(255, 255, 255, ${surfaceBorderAlpha.toFixed(3)})`
+  };
+
+  useEffect(() => {
+    document.body.classList.add('overlay-active');
+    return () => {
+      document.body.classList.remove('overlay-active');
+    };
+  }, []);
 
   // Check for BlackHole on mount
   useEffect(() => {
@@ -252,25 +272,24 @@ ${text}`;
 
   return (
     <div
-      className="fixed inset-0 p-4 flex flex-col items-center pointer-events-auto"
+      className="fixed inset-0 flex items-end justify-center px-4 pb-12"
       style={{ pointerEvents: isInteractive ? 'auto' : 'none' }}
     >
       <div
-        className="w-full max-w-2xl flex flex-col shadow-2xl rounded-2xl border border-gray-400/30"
+        className="flex w-full max-w-3xl flex-col gap-3 rounded-3xl shadow-[0px_24px_60px_-28px_rgba(15,23,42,0.65)]"
         style={{
-          ...overlayStyle,
           WebkitAppRegion: 'drag',
-          background: 'rgba(36, 37, 46, 0.68)',
-          backdropFilter: 'blur(16px) saturate(180%)',
-          boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.18)',
-          border: '1.5px solid rgba(255,255,255,0.12)',
+          backgroundColor: `rgba(12, 14, 20, ${containerBackgroundAlpha.toFixed(3)})`,
+          border: `1px solid rgba(255, 255, 255, ${containerBorderAlpha.toFixed(3)})`,
+          backdropFilter: 'blur(22px) saturate(180%)',
           pointerEvents: 'auto'
         }}
       >
         {/* BlackHole Banner */}
         {showBlackHoleBanner && (
-          <div className="px-4 py-2 bg-yellow-500/70 text-white rounded-t-lg">
-            ⚠️ BlackHole audio driver required
+          <div className="flex items-center justify-between rounded-t-3xl border-b border-amber-200/40 bg-amber-200/20 px-4 py-2 text-xs font-medium text-amber-900">
+            <span>Install BlackHole audio driver</span>
+            <span aria-hidden="true">⚠️</span>
           </div>
         )}
 
@@ -285,40 +304,52 @@ ${text}`;
           onStartOver={handleStartOver}
           onShowHistory={() => setIsHistoryOpen(true)}
           onQuit={handleQuit}
+          onAsk={doAskSneaky}
+          surfaceTone={surfaceTone}
         />
         
         {/* Text Input */}
         {isTextMode && (
-          <div className="mt-2 px-2">
+          <div className="mt-3 px-3">
             <input
               ref={inputRef}
               type="text"
-              className="w-full bg-gray-700/70 text-white text-base px-4 py-3 rounded-lg outline-none placeholder-gray-300 border border-gray-500/20 focus:ring-2 focus:ring-blue-400 transition"
-              placeholder="Type a message, then press Enter to send..."
+              className="w-full rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder:text-slate-300 focus:outline-none"
+              placeholder="Type prompt · Enter"
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               onKeyDown={handleInputKeyDown}
-              style={{ WebkitAppRegion: 'no-drag' }}
+              style={{
+                WebkitAppRegion: 'no-drag',
+                border: `1px solid ${subtleTone.border}`,
+                backgroundColor: subtleTone.background
+              }}
             />
           </div>
         )}
         
         {/* Error Message */}
         {error && (
-          <div className="mt-2 px-4 py-2 bg-red-500/70 text-white rounded-lg">
+          <div className="mx-3 mt-3 rounded-2xl border border-rose-500/40 bg-rose-500/20 px-4 py-2 text-sm text-rose-100">
             {error}
           </div>
         )}
         
         {/* Loading Indicator */}
         {isChatProcessing && !answer && (
-          <div className="mt-2 px-4 py-3 bg-gray-800/80 rounded-lg text-gray-300 animate-pulse text-center">
+          <div
+            className="mx-3 mt-3 rounded-2xl px-4 py-3 text-center text-sm text-slate-200 animate-pulse"
+            style={{
+              border: `1px solid ${subtleTone.border}`,
+              backgroundColor: subtleTone.background
+            }}
+          >
             Thinking...
           </div>
         )}
-        
+
         {/* Answer Box */}
-        {answer && <AnswerBox markdown={answer} />}
+        {answer && <AnswerBox markdown={answer} tone={surfaceTone} />}
       </div>
       
       {/* History Modal */}
@@ -326,10 +357,10 @@ ${text}`;
         history={history}
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
+        tone={surfaceTone}
       />
     </div>
   );
 };
 
 export default Overlay;
-
