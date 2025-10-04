@@ -185,7 +185,7 @@ const MainApp = () => {
             <span className={pillClass}>Sneaky</span>
             <div className="space-y-3">
               <h1 className="text-4xl font-semibold text-slate-100 md:text-5xl">
-                A minimal co-pilot that stays out of the way.
+                Sneaky stays ready, just out of frame.
               </h1>
               <p className="max-w-xl text-base text-slate-400">
                 Trigger Sneaky from anywhere, capture context quietly, and surface the answers you need without breaking focus.
@@ -205,7 +205,7 @@ const MainApp = () => {
             <div className="space-y-2">
               <div className="space-y-4 sm:space-y-5">
                 <div className="sm:flex sm:flex-col">
-                  <h2 className="text-xl font-medium text-slate-100">Quick actions</h2>
+              <h2 className="text-xl font-medium text-slate-100">Sneaky quick actions</h2>
                   <p className="text-sm leading-relaxed text-slate-400">
                     Run a dry run or use a shortcut to call Sneaky instantly.
                   </p>
