@@ -25,7 +25,7 @@ let mainWindow = null;
 let overlayWindow = null;
 
 // Track whether overlay is click‑through (start in View Mode)
-let overlayIgnoreMouse = true;
+let overlayIgnoreMouse = false;
 
 // Keep track of the latest suggestions so we can resend them when overlay reopens
 let lastSuggestions = [];
@@ -218,9 +218,9 @@ function createOverlayWindow() {
   console.log(`Loading overlay URL: ${overlayUrl}`);
   overlayWindow.loadURL(overlayUrl);
 
-  // Start in click-through mode
-  overlayWindow.setIgnoreMouseEvents(true);
-  overlayIgnoreMouse = true;
+  // Start in interactive mode by default
+  overlayWindow.setIgnoreMouseEvents(false);
+  overlayIgnoreMouse = false;
 
   // Handle window close
   overlayWindow.on('closed', () => {
@@ -230,6 +230,7 @@ function createOverlayWindow() {
   // Log when overlay is ready
   overlayWindow.webContents.on('did-finish-load', () => {
     console.log('[Main] preload ran →', overlayWindow.webContents.getURL());
+    overlayWindow.webContents.send('toggle-interactive-mode', true);
   });
 
   // Handle errors

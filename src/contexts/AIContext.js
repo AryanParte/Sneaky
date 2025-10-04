@@ -216,9 +216,9 @@ export const AIProvider = ({ children }) => {
   // Send a chat message and get assistant reply
   const sendChatMessage = async (content, isAudioMode = false) => {
     return new Promise(async (resolve, reject) => {
-      const apiKey = envKey;
+      const apiKey = (envKey || settings.apiKey || '').trim();
       if (!apiKey) {
-        setError('⚠️ Add OPENAI_API_KEY to .env and restart.');
+        setError('⚠️ Add OPENAI_API_KEY in .env or Settings.');
         reject('no key');
         return;
       }
@@ -276,36 +276,26 @@ export const AIProvider = ({ children }) => {
           : [{ role: 'system', content: systemPrompt }, ...chatHistory.map(m=>({role:m.role,content:m.content})), { role:'user', content: trimmed }];
         
         // Start streaming completion
-        const stream = await openai.chat.completions.create({
+        const completion = await openai.chat.completions.create({
           model: settings.modelName,
           messages,
           max_tokens: maxTokens,
-          temperature: temperature,
-          stream: true
+          temperature
         });
-        const assistantMsg = { role: 'assistant', content: '' };
-        // Add empty msg to history
+
+        const assistantText = completion?.choices?.[0]?.message?.content?.trim() || '';
+        const assistantMsg = { role: 'assistant', content: assistantText };
+
         setChatHistory(prev => [...prev, assistantMsg]);
-        if (!isOverlayWindow) window.electron?.sendChatMessage(assistantMsg);
-        // Append chunks as they arrive
-        for await (const part of stream) {
-          const delta = part.choices?.[0]?.delta?.content;
-          if (delta) {
-            assistantMsg.content += delta;
-            setChatHistory(prev => {
-              const h = [...prev];
-              h[h.length-1] = { ...assistantMsg };
-              return h;
-            });
-            if (!isOverlayWindow) window.electron?.sendChatMessage({ role:'assistant', content: assistantMsg.content });
-          }
+        if (!isOverlayWindow) {
+          window.electron?.sendChatMessage(assistantMsg);
         }
-        
-        // Resolve the promise with the assistant's response
-        resolve(assistantMsg.content);
+
+        resolve(assistantText);
       } catch (err) {
-        console.error('Chat streaming error:', err);
-        setError('Chat failed.');
+        console.error('Chat completion error:', err);
+        const message = err?.response?.data?.error?.message || err?.message || 'Chat failed.';
+        setError(`Chat failed: ${message}`);
         reject(err);
       } finally {
         setIsChatProcessing(false);
@@ -329,21 +319,24 @@ export const AIProvider = ({ children }) => {
     try {
       const openai = new OpenAI({ apiKey: settings.apiKey, dangerouslyAllowBrowser: true });
       // Stream assistant analysis
-      const stream = await openai.chat.completions.create({ model: settings.modelName, messages: [{ role:'user', content:`You are Sneaky... [SCREEN OCR]\n${ocrText.slice(0,4000)}` }], max_tokens:500, temperature:0.7, stream:true });
-      const assistantMsg = { role:'assistant', content:'' };
-      setChatHistory(prev=>[...prev,assistantMsg]);
-      if (!isOverlayWindow) window.electron?.sendChatMessage(assistantMsg);
-      for await (const part of stream) {
-        const delta = part.choices?.[0]?.delta?.content;
-        if (delta) {
-          assistantMsg.content += delta;
-          setChatHistory(prev=>{ const h=[...prev]; h[h.length-1]={...assistantMsg}; return h; });
-          if (!isOverlayWindow) window.electron?.sendChatMessage({ role:'assistant', content: assistantMsg.content });
-        }
+      const completion = await openai.chat.completions.create({
+        model: settings.modelName,
+        messages: [{ role: 'user', content: `You are Sneaky... [SCREEN OCR]\n${ocrText.slice(0, 4000)}` }],
+        max_tokens: 500,
+        temperature: 0.7
+      });
+
+      const assistantText = completion?.choices?.[0]?.message?.content?.trim() || '';
+      const assistantMsg = { role: 'assistant', content: assistantText };
+
+      setChatHistory(prev => [...prev, assistantMsg]);
+      if (!isOverlayWindow) {
+        window.electron?.sendChatMessage(assistantMsg);
       }
     } catch (err) {
       console.error('analyzeScreenAndRespond error:', err);
-      setError('Failed to analyze screen.');
+      const message = err?.response?.data?.error?.message || err?.message || 'Failed to analyze screen.';
+      setError(message);
     } finally {
       setIsChatProcessing(false);
     }

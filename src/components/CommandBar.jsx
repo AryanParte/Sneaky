@@ -24,7 +24,7 @@ const CommandBar = ({
       }
     : { WebkitAppRegion: 'drag' };
 
-  const baseButtonClass = 'inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-100 transition focus:outline-none backdrop-blur';
+  const baseButtonClass = 'inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-100 transition focus:outline-none';
 
   const baseButtonStyle = surfaceTone
     ? {
@@ -51,7 +51,7 @@ const CommandBar = ({
 
   return (
     <div
-      className="flex w-full items-center justify-between rounded-full px-3 py-2 text-slate-100 backdrop-blur-2xl"
+      className="flex w-full items-center justify-between rounded-full px-3 py-2 text-slate-100"
       style={containerStyle}
     >
       <div className="flex items-center gap-2" style={{ WebkitAppRegion: 'no-drag' }}>

@@ -9,7 +9,7 @@ import HistoryModal from './HistoryModal';
 const Overlay = () => {
   const { settings, envKey } = useSettings();
   const { error, sendChatMessage, isChatProcessing, analyzeScreenAndRespond } = useAI();
-  const [isInteractive, setIsInteractive] = useState(false);
+  const [isInteractive, setIsInteractive] = useState(true);
   const [audioOn, setAudioOn] = useState(false);
   const [isTextMode, setIsTextMode] = useState(false);
   const [chatInput, setChatInput] = useState('');
@@ -24,20 +24,19 @@ const Overlay = () => {
 
   // Set opacity based on settings
   const overlayOpacity = Math.min(Math.max(settings.opacity, 0.1), 1);
-  const containerBackgroundAlpha = 0.1 + overlayOpacity * 0.35;
-  const containerBorderAlpha = 0.08 + overlayOpacity * 0.18;
-  const surfaceBackgroundAlpha = 0.04 + overlayOpacity * 0.16;
-  const surfaceBorderAlpha = 0.08 + overlayOpacity * 0.2;
-  const subtleBackgroundAlpha = 0.03 + overlayOpacity * 0.12;
+  const frameTone = {
+    background: `rgba(17, 24, 39, ${(0.28 + overlayOpacity * 0.45).toFixed(3)})`,
+    border: `rgba(148, 163, 184, ${(0.18 + overlayOpacity * 0.18).toFixed(3)})`
+  };
 
   const surfaceTone = {
-    background: `rgba(255, 255, 255, ${surfaceBackgroundAlpha.toFixed(3)})`,
-    border: `rgba(255, 255, 255, ${surfaceBorderAlpha.toFixed(3)})`
+    background: `rgba(30, 41, 59, ${(0.32 + overlayOpacity * 0.4).toFixed(3)})`,
+    border: `rgba(148, 163, 184, ${(0.22 + overlayOpacity * 0.2).toFixed(3)})`
   };
 
   const subtleTone = {
-    background: `rgba(255, 255, 255, ${subtleBackgroundAlpha.toFixed(3)})`,
-    border: `rgba(255, 255, 255, ${surfaceBorderAlpha.toFixed(3)})`
+    background: `rgba(51, 65, 85, ${(0.26 + overlayOpacity * 0.32).toFixed(3)})`,
+    border: surfaceTone.border
   };
 
   useEffect(() => {
@@ -273,15 +272,13 @@ ${text}`;
   return (
     <div
       className="fixed inset-0 flex items-end justify-center px-4 pb-12"
-      style={{ pointerEvents: isInteractive ? 'auto' : 'none' }}
     >
       <div
-        className="flex w-full max-w-3xl flex-col gap-3 rounded-3xl shadow-[0px_24px_60px_-28px_rgba(15,23,42,0.65)]"
+        className="flex w-full max-w-3xl flex-col gap-3 rounded-3xl shadow-[0px_16px_40px_-24px_rgba(15,23,42,0.55)]"
         style={{
           WebkitAppRegion: 'drag',
-          backgroundColor: `rgba(12, 14, 20, ${containerBackgroundAlpha.toFixed(3)})`,
-          border: `1px solid rgba(255, 255, 255, ${containerBorderAlpha.toFixed(3)})`,
-          backdropFilter: 'blur(22px) saturate(180%)',
+          backgroundColor: frameTone.background,
+          border: `1px solid ${frameTone.border}`,
           pointerEvents: 'auto'
         }}
       >

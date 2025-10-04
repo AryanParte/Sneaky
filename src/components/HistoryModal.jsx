@@ -11,7 +11,7 @@ const HistoryModal = ({ history, isOpen, onClose, tone }) => {
     : 'rgba(255,255,255,0.15)';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40">
       <div
         className="w-full max-w-2xl max-h-[80vh] overflow-hidden rounded-3xl text-slate-100 shadow-[0px_30px_70px_-30px_rgba(15,23,42,0.55)]"
         style={{

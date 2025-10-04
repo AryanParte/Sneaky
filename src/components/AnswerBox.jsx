@@ -20,7 +20,7 @@ const AnswerBox = ({ markdown, tone }) => {
   return (
     <div
       className="
-        mt-2 rounded-3xl p-5 text-sm text-slate-100 backdrop-blur-2xl
+        mt-2 rounded-3xl p-5 text-sm text-slate-100
         overflow-y-auto max-h-[calc(100vh-8rem)] transition-all duration-200
       "
       style={surfaceStyle}
